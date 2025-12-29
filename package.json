@@ -1,0 +1,58 @@
+{
+  "name": "moonbeam",
+  "version": "1.0.0",
+  "description": "MoonBeam - Discord-like Voice Chat",
+  "productName": "MoonBeam",
+  "main": "dist/electron/main.js",
+  "scripts": {
+    "clean": "rimraf dist release",
+    "build": "tsc && node copy-html.js",
+    "predist": "npm run clean && npm run build",
+    "dist": "electron-builder",
+    "start": "npm run build && electron .",
+    "server": "ts-node server.ts",
+    "dev": "npm run build && concurrently \"tsc --watch\" \"node copy-html.js\" \"nodemon --watch dist --exec 'electron .'\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "uuid": "^8.3.2",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "@types/uuid": "^8.3.4",
+    "@types/ws": "^8.18.1",
+    "concurrently": "^8.2.2",
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12",
+    "nodemon": "^3.1.4",
+    "rimraf": "^5.0.10",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "build": {
+    "appId": "com.moonbeam.voicechat",
+    "productName": "MoonBeam",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "client/index.html",
+      "icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.png"
+    },
+    "mac": {
+      "icon": "icon.png"
+    },
+    "linux": {
+      "icon": "icon.png"
+    }
+  }
+}

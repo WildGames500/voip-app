@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Moonbeam Voice Chat</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1e1e1e;
+      color: #fff;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 { color: #7289da; margin-bottom: 20px; }
+
+    #voiceUsers {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .user-card {
+      display: flex;
+      align-items: center;
+      background: #2f3136;
+      padding: 10px 14px;
+      border-radius: 8px;
+      min-width: 180px;
+    }
+    .indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: #444;
+      margin-right: 12px;
+      transition: all 0.3s ease;
+    }
+    .indicator.speaking {
+      background-color: #3ba55c;
+      box-shadow: 0 0 0 4px rgba(59, 165, 92, 0.4);
+      transform: scale(1.2);
+    }
+
+    #controls button {
+      padding: 10px 16px;
+      font-size: 14px;
+      background: #36393f;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    #controls button:hover { background: #40444b; }
+    #controls button:active { background: #4f545c; }
+
+    #usernameInput {
+      padding: 10px;
+      font-size: 14px;
+      border-radius: 4px;
+      border: none;
+      width: 200px;
+      margin-right: 10px;
+    }
+    #join {
+      padding: 10px 20px;
+      font-size: 14px;
+      background: #5865f2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #join:hover { background: #4752c4; }
+    #join:disabled { background: #7289da; cursor: not-allowed; }
+
+    #previewUsers {
+      margin-top: 20px;
+      padding: 10px;
+      background: #2f3136;
+      border-radius: 8px;
+      min-height: 40px;
+    }
+    #previewUsers.hidden {
+      display: none;
+    }
+
+    #connectionStatus {
+      margin-top: 20px;
+      padding: 10px;
+      background: #2f3136;
+      border-radius: 8px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>Voice Chat</h1>
+
+  <input type="text" id="usernameInput" placeholder="Enter your username" value="User" />
+  <button id="join">Join Voice Channel</button>
+
+  <div id="voiceUsers"></div>
+
+  <div id="previewUsers">
+    <strong>In Voice:</strong>
+  </div>
+
+  <div id="controls" style="margin-top: 20px;">
+    <button id="muteBtn">Mute</button>
+    <button id="deafenBtn">Deafen</button>
+    <button id="pttBtn">PTT: OFF</button>
+  </div>
+
+  <div id="connectionStatus">Connecting to server...</div>
+
+  <script defer src="../dist/client/renderer.js"></script>
+</body>
+</html>
