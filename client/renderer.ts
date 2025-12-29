@@ -1,16 +1,17 @@
 const socket = new WebSocket("wss://voip-app-production.up.railway.app");
 
+declare const supabase: any;  // This tells TypeScript "trust me, it exists"
+/// <reference lib="dom" />
+
 let localStream: MediaStream | null = null;
 let myId: string | null = null;
-let myName = "User";
+let myName = "User";  // Will be set from Supabase
 let room = "main";
 let joined = false;
 
 const peers: Record<string, RTCPeerConnection> = {};
 const users: Record<string, { card: HTMLDivElement; audio?: HTMLAudioElement; indicator: HTMLDivElement }> = {};
 
-const joinBtn = document.getElementById("join") as HTMLButtonElement;
-const usernameInput = document.getElementById("usernameInput") as HTMLInputElement;
 const voiceUsers = document.getElementById("voiceUsers") as HTMLDivElement;
 const previewUsers = document.getElementById("previewUsers") as HTMLDivElement;
 const connectionStatus = document.getElementById("connectionStatus") as HTMLDivElement;
@@ -18,6 +19,7 @@ const connectionStatus = document.getElementById("connectionStatus") as HTMLDivE
 const muteBtn = document.getElementById("muteBtn") as HTMLButtonElement;
 const deafenBtn = document.getElementById("deafenBtn") as HTMLButtonElement;
 const pttBtn = document.getElementById("pttBtn") as HTMLButtonElement;
+const logoutBtn = document.getElementById("logoutBtn") as HTMLButtonElement;
 
 let muted = false;
 let deafened = false;
@@ -88,20 +90,19 @@ socket.onmessage = async (e) => {
   }
 };
 
-/* ---------------- JOIN ---------------- */
+/* ---------------- JOIN VOICE ---------------- */
 
-joinBtn.onclick = async () => {
-  myName = usernameInput.value.trim() || "User";
+function joinVoiceChannel(username: string) {
+  myName = username;
 
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      }
-    });
-
+  navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true
+    }
+  }).then(stream => {
+    localStream = stream;
     createUserCard("self", myName);
     setupLocalVoiceActivity(users["self"].indicator);
 
@@ -115,13 +116,11 @@ joinBtn.onclick = async () => {
       socket.send(JSON.stringify({ type: "get-users" }));
     }, 5000);
 
-    joinBtn.disabled = true;
-    joinBtn.textContent = "Joined!";
     joined = true;
-  } catch (err) {
-    alert("Mic access denied: " + (err as Error).message);
-  }
-};
+  }).catch(err => {
+    alert("Mic access denied: " + err.message);
+  });
+}
 
 /* ---------------- CLEANUP ---------------- */
 
@@ -324,6 +323,11 @@ pttBtn.onclick = () => {
   pttEnabled = !pttEnabled;
   pttBtn.textContent = pttEnabled ? "PTT: ON (Hold V)" : "PTT: OFF";
   updateMicState();
+};
+
+logoutBtn.onclick = async () => {
+  await supabase.auth.signOut();
+  location.reload();  // Refresh to show login screen again
 };
 
 document.addEventListener("keydown", e => {

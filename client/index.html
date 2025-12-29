@@ -2,116 +2,303 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>MoonBeam Voice Chat</title>
+  <title>MoonBeam</title>
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #1e1e1e;
-      color: #fff;
-      padding: 20px;
-      margin: 0;
-    }
-    h1 { color: #7289da; margin-bottom: 20px; }
+    body, html { height: 100%; margin: 0; background: #1e1e1e; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+    #app { display: flex; flex-direction: column; width: 100%; height: 100%; }
 
-    #voiceUsers {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin: 20px 0;
+    /* Top Row */
+    #top-row { display: flex; flex: 1; overflow: hidden; }
+
+    /* Server Sidebar */
+    #server-sidebar {
+      width: 72px; background: #202225; display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 8px;
     }
-    .user-card {
-      display: flex;
-      align-items: center;
-      background: #2f3136;
-      padding: 10px 14px;
-      border-radius: 8px;
-      min-width: 180px;
+    .server-icon {
+      width: 48px; height: 48px; border-radius: 50%; cursor: pointer; object-fit: cover; transition: border-radius 0.2s;
     }
-    .indicator {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background-color: #444;
-      margin-right: 12px;
-      transition: all 0.3s ease;
+    .server-icon:hover { border-radius: 16px; }
+    .server-icon.home { border-radius: 16px; background: #36393f; padding: 4px; }
+    #create-server-btn {
+      width: 48px; height: 48px; background: #36393f; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 28px; color: #3ba55c; cursor: pointer; font-weight: bold;
     }
-    .indicator.speaking {
-      background-color: #3ba55c;
-      box-shadow: 0 0 0 4px rgba(59, 165, 92, 0.4);
-      transform: scale(1.2);
+    #create-server-btn:hover { border-radius: 16px; background: #3ba55c; color: white; }
+
+    /* Channel Sidebar */
+    #channel-sidebar {
+      width: 240px; background: #2f3136; display: flex; flex-direction: column;
+    }
+    #server-header {
+      padding: 16px; font-size: 16px; font-weight: 600; border-bottom: 1px solid #202225; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;
+    }
+    #channels-list {
+      flex: 1; overflow-y: auto; padding: 8px 0;
+    }
+    .channel {
+      padding: 6px 16px; cursor: pointer; color: #96989d; display: flex; align-items: center;
+    }
+    .channel:hover { background: rgba(79,84,92,0.3); color: #fff; }
+    .channel.active { background: rgba(79,84,92,0.6); color: #fff; }
+    .channel::before { content: "# "; margin-right: 6px; opacity: 0.6; }
+
+    /* Main Content */
+    #main-content {
+      flex: 1; display: flex; flex-direction: column; background: #36393f;
+    }
+    #chat-header {
+      padding: 16px; border-bottom: 1px solid #202225; font-size: 18px; font-weight: 600;
+    }
+    #messages {
+      flex: 1; overflow-y: auto; padding: 20px;
+    }
+    #message-input {
+      padding: 16px 20px; background: #40444b;
+    }
+    #message-input input {
+      width: 100%; padding: 12px 16px; background: #40444b; border: 1px solid #202225; border-radius: 8px; color: #dcddde; font-size: 15px;
+    }
+    #message-input input:focus { outline: none; border-color: #00aff4; }
+
+    /* Member Sidebar */
+    #member-sidebar {
+      width: 240px; background: #2f3136; padding: 16px 8px;
+    }
+    #member-list { font-style: italic; color: #96989d; }
+
+    /* Bottom User Bar */
+    #user-bar {
+      height: 54px; background: #292b2f; display: flex; align-items: center; padding: 0 16px; border-top: 1px solid #202225;
+    }
+    #user-info {
+      display: flex; align-items: center; flex: 1;
+    }
+    #user-pfp {
+      width: 32px; height: 32px; border-radius: 50%; margin-right: 12px;
+    }
+    #user-name { font-weight: 600; font-size: 14px; }
+    #user-status { font-size: 12px; color: #3ba55c; margin-left: 8px; }
+    #settings-gear {
+      margin-left: auto; cursor: pointer; font-size: 20px; color: #b9bbbe; padding: 8px; border-radius: 4px;
+    }
+    #settings-gear:hover { background: #36393f; color: white; }
+
+    #voice-status {
+      display: none; align-items: center; margin-left: auto;
+    }
+    #voice-status button {
+      padding: 6px 12px; background: #36393f; border: none; border-radius: 4px; color: white; cursor: pointer; margin-left: 8px;
     }
 
-    #controls button {
-      padding: 10px 16px;
-      font-size: 14px;
-      background: #36393f;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      margin-right: 10px;
+    /* Auth Overlay */
+    #auth-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111214; display: flex; align-items: center; justify-content: center; z-index: 100;
     }
-    #controls button:hover { background: #40444b; }
-    #controls button:active { background: #4f545c; }
-
-    #usernameInput {
-      padding: 10px;
-      font-size: 14px;
-      border-radius: 4px;
-      border: none;
-      width: 200px;
-      margin-right: 10px;
+    #auth-box {
+      background: #36393f; padding: 40px; border-radius: 8px; width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,0.8);
     }
-    #join {
-      padding: 10px 20px;
-      font-size: 14px;
-      background: #5865f2;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
+    #auth-box h2 { text-align: center; margin-bottom: 32px; font-size: 24px; }
+    #auth-box h3 { margin: 24px 0 12px 0; }
+    #auth-box input {
+      width: 100%; padding: 12px; margin: 8px 0; background: #202225; border: none; border-radius: 4px; color: white; font-size: 15px;
     }
-    #join:hover { background: #4752c4; }
-    #join:disabled { background: #7289da; cursor: not-allowed; }
-
-    #previewUsers {
-      margin-top: 20px;
-      padding: 10px;
-      background: #2f3136;
-      border-radius: 8px;
-      min-height: 40px;
+    #auth-box button {
+      width: 100%; padding: 12px; margin: 16px 0 8px; background: #5865f2; border: none; border-radius: 4px; color: white; font-size: 16px; cursor: pointer;
     }
-
-    #connectionStatus {
-      margin-top: 20px;
-      padding: 10px;
-      background: #2f3136;
-      border-radius: 8px;
-      font-family: monospace;
-    }
+    #auth-box button:hover { background: #4752c4; }
+    .message { min-height: 24px; color: #f04747; font-size: 14px; text-align: center; }
   </style>
 </head>
 <body>
-  <h1>MoonBeam Voice Chat</h1>
 
-  <input type="text" id="usernameInput" placeholder="Enter your username" value="User" />
-  <button id="join">Join Voice Channel</button>
+  <!-- Auth Overlay -->
+  <div id="auth-overlay">
+    <div id="auth-box">
+      <h2>Welcome to MoonBeam</h2>
 
-  <div id="voiceUsers"></div>
+      <div id="signup-form">
+        <h3>Create Account</h3>
+        <input type="email" id="signup-email" placeholder="Email" />
+        <input type="password" id="signup-password" placeholder="Password (min 6 characters)" />
+        <input type="text" id="signup-username" placeholder="Choose a Username" />
+        <button id="signup-btn">Sign Up</button>
+        <p id="signup-message" class="message"></p>
+      </div>
 
-  <div id="previewUsers">
-    <strong>In Voice:</strong>
+      <div id="login-form">
+        <h3>Log In</h3>
+        <input type="email" id="login-email" placeholder="Email" />
+        <input type="password" id="login-password" placeholder="Password" />
+        <button id="login-btn">Log In</button>
+        <p id="login-message" class="message"></p>
+      </div>
+    </div>
   </div>
 
-  <div id="controls" style="margin-top: 20px;">
-    <button id="muteBtn">Mute</button>
-    <button id="deafenBtn">Deafen</button>
-    <button id="pttBtn">PTT: OFF</button>
+  <!-- Main App -->
+  <div id="app" style="display: none;">
+    <div id="top-row">
+      <!-- Server Sidebar -->
+      <div id="server-sidebar">
+        <img src="icon.png" class="server-icon home" id="home-btn" title="Home">
+        <div style="height: 2px; width: 32px; background: #4f545c; margin: 8px 0;"></div>
+        <div id="server-list"></div>
+        <div id="create-server-btn">+</div>
+      </div>
+
+      <!-- Channel Sidebar -->
+      <div id="channel-sidebar">
+        <div id="server-header">Select a server</div>
+        <div id="channels-list">
+          <div class="channel">Create or join a server to get started</div>
+        </div>
+      </div>
+
+      <!-- Main Chat -->
+      <div id="main-content">
+        <div id="chat-header">MoonBeam</div>
+        <div id="messages">Log in and create or join a server to begin.</div>
+        <div id="message-input">
+          <input type="text" placeholder="Log in to chat..." disabled>
+        </div>
+      </div>
+
+      <!-- Member Sidebar -->
+      <div id="member-sidebar">
+        <div id="member-list">— No server selected —</div>
+      </div>
+    </div>
+
+    <!-- Bottom User Bar -->
+    <div id="user-bar">
+      <div id="user-info">
+        <img src="icon.png" id="user-pfp">
+        <div>
+          <div id="user-name">Loading...</div>
+          <div id="user-status">Online</div>
+        </div>
+      </div>
+
+      <div id="settings-gear">⚙️</div>
+
+      <div id="voice-status">
+        <span style="margin-right: 12px; font-size: 14px;">🔊 Voice Connected</span>
+        <button id="muteBtn">Mute</button>
+        <button id="deafenBtn">Deafen</button>
+        <button id="pttBtn">PTT: OFF</button>
+      </div>
+
+      <button id="logoutBtn" style="background: #f04747; margin-left: 16px; padding: 6px 12px; border-radius: 4px;">Logout</button>
+    </div>
   </div>
 
-  <div id="connectionStatus">Connecting to server...</div>
-
-  <!-- Simple static path — renderer.js is copied to same folder -->
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./renderer.js"></script>
+
+  <script>
+    const { createClient } = supabase;
+    const supabaseClient = createClient(
+      'https://oydqespkweytklrbmfsk.supabase.co',
+      'sb_publishable_y-QjZQ2PKcqhbdQ4OAOWmQ_Z8m8f2CL'
+    );
+    window.supabase = supabaseClient;
+
+    let currentUsername = '';
+
+    // Signup
+    document.getElementById('signup-btn').onclick = async () => {
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      const username = document.getElementById('signup-username').value.trim();
+
+      if (!email || !password || !username) {
+        document.getElementById('signup-message').textContent = 'All fields are required';
+        return;
+      }
+
+      const { error } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: { data: { username } }
+      });
+
+      document.getElementById('signup-message').textContent = 
+        error ? error.message : 'Success! Check your email to confirm, then log in.';
+    };
+
+    // Login
+    document.getElementById('login-btn').onclick = async () => {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        document.getElementById('login-message').textContent = error.message;
+      } else {
+        await afterAuth();
+      }
+    };
+
+    // After successful login
+    async function afterAuth() {
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      const { data: profile } = await supabaseClient
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+
+      currentUsername = profile?.username || 'User';
+
+      document.getElementById('user-name').textContent = currentUsername;
+
+      document.getElementById('auth-overlay').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+    }
+
+    // Auto-login
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+      if (session) afterAuth();
+    });
+
+    // Create server
+    document.getElementById('create-server-btn').onclick = async () => {
+      if (!currentUsername) {
+        alert('Please log in first');
+        return;
+      }
+      const name = prompt('Server name:');
+      if (!name) return;
+
+      const { data: { user } } = await supabaseClient.auth.getUser();
+
+      const { data: server } = await supabaseClient
+        .from('servers')
+        .insert({ name, owner_id: user.id })
+        .select()
+        .single();
+
+      await supabaseClient.from('server_members').insert({
+        server_id: server.id,
+        user_id: user.id,
+        role: 'owner'
+      });
+
+      alert(`Server "${name}" created successfully!`);
+    };
+
+    // Logout
+    document.getElementById('logoutBtn').onclick = async () => {
+      await supabaseClient.auth.signOut();
+      location.reload();
+    };
+
+    // Settings
+    document.getElementById('settings-gear').onclick = () => {
+      alert('Settings coming soon!');
+    };
+  </script>
 </body>
 </html>
