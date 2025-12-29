@@ -1,4 +1,4 @@
-const socket = new WebSocket("wss://moonbeam-server.up.railway.app");
+const socket = new WebSocket("wss://voip-app-production.up.railway.app");
 
 let localStream: MediaStream | null = null;
 let myId: string | null = null;

@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Moonbeam Voice Chat</title>
+  <title>MoonBeam Voice Chat</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -81,9 +81,6 @@
       border-radius: 8px;
       min-height: 40px;
     }
-    #previewUsers.hidden {
-      display: none;
-    }
 
     #connectionStatus {
       margin-top: 20px;
@@ -95,7 +92,7 @@
   </style>
 </head>
 <body>
-  <h1>Voice Chat</h1>
+  <h1>MoonBeam Voice Chat</h1>
 
   <input type="text" id="usernameInput" placeholder="Enter your username" value="User" />
   <button id="join">Join Voice Channel</button>
@@ -114,6 +111,7 @@
 
   <div id="connectionStatus">Connecting to server...</div>
 
-  <script defer src="../dist/client/renderer.js"></script>
+  <!-- Simple static path — renderer.js is copied to same folder -->
+  <script src="./renderer.js"></script>
 </body>
 </html>
