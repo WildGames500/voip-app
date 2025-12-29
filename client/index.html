@@ -7,7 +7,6 @@
     body, html { height: 100%; margin: 0; background: #1e1e1e; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
     #app { display: flex; flex-direction: column; width: 100%; height: 100%; }
 
-    /* Top Row */
     #top-row { display: flex; flex: 1; overflow: hidden; }
 
     /* Server Sidebar */
@@ -19,11 +18,13 @@
     }
     .server-icon:hover { border-radius: 16px; }
     .server-icon.home { border-radius: 16px; background: #36393f; padding: 4px; }
-    #create-server-btn {
+    #create-server-btn, #join-server-btn {
       width: 48px; height: 48px; background: #36393f; border-radius: 50%; display: flex; align-items: center; justify-content: center;
       font-size: 28px; color: #3ba55c; cursor: pointer; font-weight: bold;
     }
-    #create-server-btn:hover { border-radius: 16px; background: #3ba55c; color: white; }
+    #create-server-btn:hover, #join-server-btn:hover {
+      border-radius: 16px; background: #3ba55c; color: white;
+    }
 
     /* Channel Sidebar */
     #channel-sidebar {
@@ -40,7 +41,8 @@
     }
     .channel:hover { background: rgba(79,84,92,0.3); color: #fff; }
     .channel.active { background: rgba(79,84,92,0.6); color: #fff; }
-    .channel::before { content: "# "; margin-right: 6px; opacity: 0.6; }
+    .channel.text::before { content: "# "; opacity: 0.6; }
+    .channel.voice::before { content: "🔊 "; opacity: 0.6; }
 
     /* Main Content */
     #main-content {
@@ -50,8 +52,21 @@
       padding: 16px; border-bottom: 1px solid #202225; font-size: 18px; font-weight: 600;
     }
     #messages {
-      flex: 1; overflow-y: auto; padding: 20px;
+      flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px;
     }
+    .message {
+      max-width: 70%; padding: 8px 12px; background: #40444b; border-radius: 8px; align-self: flex-start; word-wrap: break-word;
+    }
+    .message.self {
+      background: #5865f2; align-self: flex-end;
+    }
+    .message-author {
+      font-weight: 600; font-size: 14px; margin-bottom: 4px;
+    }
+    .message-content {
+      font-size: 15px;
+    }
+
     #message-input {
       padding: 16px 20px; background: #40444b;
     }
@@ -64,7 +79,13 @@
     #member-sidebar {
       width: 240px; background: #2f3136; padding: 16px 8px;
     }
-    #member-list { font-style: italic; color: #96989d; }
+    #member-list {
+      font-style: italic; color: #96989d;
+    }
+    .member {
+      padding: 4px 8px; display: flex; align-items: center;
+    }
+    .member-name { margin-left: 8px; font-size: 14px; }
 
     /* Bottom User Bar */
     #user-bar {
@@ -143,7 +164,8 @@
         <img src="icon.png" class="server-icon home" id="home-btn" title="Home">
         <div style="height: 2px; width: 32px; background: #4f545c; margin: 8px 0;"></div>
         <div id="server-list"></div>
-        <div id="create-server-btn">+</div>
+        <div id="create-server-btn" title="Create Server">+</div>
+        <div id="join-server-btn" title="Join Server">🔗</div>
       </div>
 
       <!-- Channel Sidebar -->
@@ -157,9 +179,13 @@
       <!-- Main Chat -->
       <div id="main-content">
         <div id="chat-header">MoonBeam</div>
-        <div id="messages">Log in and create or join a server to begin.</div>
+        <div id="messages">
+          <div style="text-align: center; color: #96989d; margin-top: 50px;">
+            Log in and select a server to begin
+          </div>
+        </div>
         <div id="message-input">
-          <input type="text" placeholder="Log in to chat..." disabled>
+          <input type="text" id="message-input-field" placeholder="Log in to chat..." disabled>
         </div>
       </div>
 
@@ -205,6 +231,10 @@
     window.supabase = supabaseClient;
 
     let currentUsername = '';
+    let currentUserId = '';
+    let currentServer = null;
+    let currentChannel = null;
+    let messageSubscription = null;
 
     // Signup
     document.getElementById('signup-btn').onclick = async () => {
@@ -244,6 +274,8 @@
     // After successful login
     async function afterAuth() {
       const { data: { user } } = await supabaseClient.auth.getUser();
+      currentUserId = user.id;
+
       const { data: profile } = await supabaseClient
         .from('profiles')
         .select('username')
@@ -256,12 +288,217 @@
 
       document.getElementById('auth-overlay').style.display = 'none';
       document.getElementById('app').style.display = 'flex';
+
+      document.getElementById('message-input-field').disabled = false;
+      document.getElementById('message-input-field').placeholder = 'Message #general';
+
+      await loadServers();
     }
 
-    // Auto-login
+    // Auto-login if session exists
     supabaseClient.auth.getSession().then(({ data: { session } }) => {
       if (session) afterAuth();
     });
+
+    // Load user's servers
+    async function loadServers() {
+      const { data: memberships, error } = await supabaseClient
+        .from('server_members')
+        .select('servers(*)')
+        .eq('user_id', currentUserId);
+
+      if (error) {
+        console.error('Error loading servers:', error);
+        return;
+      }
+
+      const serverList = document.getElementById('server-list');
+      serverList.innerHTML = '';
+
+      if (memberships.length === 0) {
+        document.getElementById('server-header').textContent = 'No servers yet';
+        return;
+      }
+
+      memberships.forEach(membership => {
+        const server = membership.servers;
+
+        const img = document.createElement('img');
+        img.src = 'icon.png';
+        img.className = 'server-icon';
+        img.title = server.name;
+        img.onclick = () => selectServer(server);
+        serverList.appendChild(img);
+      });
+    }
+
+    // Select a server
+    async function selectServer(server) {
+      currentServer = server;
+      document.getElementById('server-header').textContent = server.name;
+
+      // Load channels
+      const { data: channels } = await supabaseClient
+        .from('channels')
+        .select('*')
+        .eq('server_id', server.id)
+        .order('position');
+
+      const channelsList = document.getElementById('channels-list');
+      channelsList.innerHTML = '';
+
+      if (channels.length === 0) {
+        await createDefaultChannels(server.id);
+        selectServer(server); // Reload channels
+        return;
+      }
+
+      channels.forEach(channel => {
+        const div = document.createElement('div');
+        div.className = `channel ${channel.type}`;
+        div.textContent = channel.name;
+        div.onclick = () => selectChannel(channel);
+        channelsList.appendChild(div);
+      });
+
+      // Load members
+      loadMembers(server.id);
+
+      // Auto-select first text channel
+      const firstText = channels.find(ch => ch.type === 'text');
+      if (firstText) selectChannel(firstText);
+    }
+
+    // Create default channels
+    async function createDefaultChannels(serverId) {
+      await supabaseClient.from('channels').insert([
+        { server_id: serverId, name: 'general', type: 'text', position: 0 },
+        { server_id: serverId, name: 'General Voice', type: 'voice', position: 1 }
+      ]);
+    }
+
+    // Select a channel
+    async function selectChannel(channel) {
+      // Remove active class from all channels
+      document.querySelectorAll('.channel').forEach(ch => ch.classList.remove('active'));
+      // Add active to clicked
+      event.target.classList.add('active');
+
+      currentChannel = channel;
+
+      const header = document.getElementById('chat-header');
+      header.textContent = channel.type === 'voice' ? `🔊 ${channel.name}` : `# ${channel.name}`;
+
+      if (channel.type === 'text') {
+        document.getElementById('message-input').style.display = 'block';
+        document.getElementById('message-input-field').placeholder = `Message #${channel.name}`;
+        await loadMessages(channel.id);
+        subscribeToMessages(channel.id);
+      } else {
+        document.getElementById('message-input').style.display = 'none';
+        document.getElementById('messages').innerHTML = '<div style="text-align: center; color: #96989d; margin-top: 50px;">Voice channel — connect to talk (coming soon)</div>';
+      }
+    }
+
+    // Load messages
+    async function loadMessages(channelId) {
+      const { data: messages } = await supabaseClient
+        .from('messages')
+        .select('*, profiles(username)')
+        .eq('channel_id', channelId)
+        .order('created_at', { ascending: true });
+
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.innerHTML = '';
+
+      if (messages.length === 0) {
+        messagesDiv.innerHTML = '<div style="text-align: center; color: #96989d;">No messages yet — send one!</div>';
+        return;
+      }
+
+      messages.forEach(msg => {
+        addMessageToUI(msg);
+      });
+
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Add single message to UI
+    function addMessageToUI(msg) {
+      const messagesDiv = document.getElementById('messages');
+
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${msg.user_id === currentUserId ? 'self' : ''}`;
+
+      const authorSpan = document.createElement('div');
+      authorSpan.className = 'message-author';
+      authorSpan.textContent = msg.profiles?.username || 'Unknown';
+
+      const contentSpan = document.createElement('div');
+      contentSpan.className = 'message-content';
+      contentSpan.textContent = msg.content;
+
+      messageDiv.appendChild(authorSpan);
+      messageDiv.appendChild(contentSpan);
+      messagesDiv.appendChild(messageDiv);
+
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Subscribe to new messages
+    function subscribeToMessages(channelId) {
+      // Unsubscribe from previous
+      if (messageSubscription) {
+        supabaseClient.removeChannel(messageSubscription);
+      }
+
+      messageSubscription = supabaseClient
+        .channel(`public:messages:channel_id=eq.${channelId}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `channel_id=eq.${channelId}` }, payload => {
+          addMessageToUI(payload.new);
+        })
+        .subscribe();
+    }
+
+    // Send message on Enter
+    document.getElementById('message-input-field').addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter' && currentChannel && currentChannel.type === 'text') {
+        const input = e.target;
+        const content = input.value.trim();
+        if (!content) return;
+
+        const { error } = await supabaseClient.from('messages').insert({
+          channel_id: currentChannel.id,
+          content: content
+        });
+
+        if (error) {
+          console.error('Send message error:', error);
+        } else {
+          input.value = '';
+        }
+      }
+    });
+
+    // Load members (placeholder)
+    async function loadMembers(serverId) {
+      const { data: members } = await supabaseClient
+        .from('server_members')
+        .select('*, profiles(username)')
+        .eq('server_id', serverId);
+
+      const memberList = document.getElementById('member-list');
+      memberList.innerHTML = '<strong>Members — ' + (members?.length || 0) + '</strong>';
+
+      if (members) {
+        members.forEach(m => {
+          const div = document.createElement('div');
+          div.className = 'member';
+          div.innerHTML = `<div style="width: 32px; height: 32px; background: #5865f2; border-radius: 50%;"></div><div class="member-name">${m.profiles?.username || 'User'}</div>`;
+          memberList.appendChild(div);
+        });
+      }
+    }
 
     // Create server
     document.getElementById('create-server-btn').onclick = async () => {
@@ -269,24 +506,64 @@
         alert('Please log in first');
         return;
       }
-      const name = prompt('Server name:');
+
+      const name = prompt('Enter server name:');
       if (!name) return;
 
-      const { data: { user } } = await supabaseClient.auth.getUser();
-
-      const { data: server } = await supabaseClient
+      const { data: server, error } = await supabaseClient
         .from('servers')
-        .insert({ name, owner_id: user.id })
+        .insert({ name, owner_id: currentUserId })
         .select()
         .single();
 
+      if (error) {
+        alert('Error creating server: ' + error.message);
+        return;
+      }
+
       await supabaseClient.from('server_members').insert({
         server_id: server.id,
-        user_id: user.id,
+        user_id: currentUserId,
         role: 'owner'
       });
 
-      alert(`Server "${name}" created successfully!`);
+      loadServers();
+      alert(`Server "${name}" created! Default channels added.`);
+    };
+
+    // Join server via invite code
+    document.getElementById('join-server-btn').onclick = async () => {
+      const code = prompt('Enter invite code:');
+      if (!code) return;
+
+      const { data: invite, error } = await supabaseClient
+        .from('invites')
+        .select('server_id')
+        .eq('code', code)
+        .single();
+
+      if (error || !invite) {
+        alert('Invalid or expired invite code');
+        return;
+      }
+
+      const { error: joinError } = await supabaseClient.from('server_members').insert({
+        server_id: invite.server_id,
+        user_id: currentUserId,
+        role: 'member'
+      });
+
+      if (joinError) {
+        if (joinError.code === '23505') {
+          alert('You are already in this server');
+        } else {
+          alert('Error joining server: ' + joinError.message);
+        }
+        return;
+      }
+
+      loadServers();
+      alert('Successfully joined the server!');
     };
 
     // Logout
@@ -295,7 +572,7 @@
       location.reload();
     };
 
-    // Settings
+    // Settings placeholder
     document.getElementById('settings-gear').onclick = () => {
       alert('Settings coming soon!');
     };
