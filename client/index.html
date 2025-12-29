@@ -217,6 +217,25 @@
       <button id="logoutBtn" style="background: #f04747; margin-left: 16px; padding: 6px 12px; border-radius: 4px;">Logout</button>
     </div>
   </div>
+  <div id="update-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 18px;">
+  <div style="background: #36393f; padding: 30px; border-radius: 12px; text-align: center; max-width: 500px;">
+    <h2>New Update Available!</h2>
+    <p id="update-message">MoonBeam v1.0.1 is ready to download.</p>
+
+    <button id="update-btn" style="padding: 12px 24px; font-size: 16px; background: #5865f2; border: none; border-radius: 8px; color: white; cursor: pointer;">
+      Update Now
+    </button>
+
+    <div id="progress-container" style="margin-top: 20px; display: none;">
+      <div style="margin-bottom: 10px;">Downloading... <span id="progress-percent">0%</span></div>
+      <div style="width: 100%; height: 20px; background: #202225; border-radius: 10px; overflow: hidden;">
+        <div id="progress-bar" style="width: 0%; height: 100%; background: #5865f2; transition: width 0.3s;"></div>
+      </div>
+      <button id="restart-btn" style="margin-top: 20px; padding: 10px 20px; background: #3ba55c; border: none; border-radius: 8px; color: white; cursor: pointer; display: none;">
+        Restart Now
+      </button>
+    </div>
+  </div>
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -575,6 +594,62 @@
     // Settings placeholder
     document.getElementById('settings-gear').onclick = () => {
       alert('Settings coming soon!');
+    };
+  </script>
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    const overlay = document.getElementById('update-overlay');
+    const message = document.getElementById('update-message');
+    const updateBtn = document.getElementById('update-btn');
+    const progressContainer = document.getElementById('progress-container');
+    const progressPercent = document.getElementById('progress-percent');
+    const progressBar = document.getElementById('progress-bar');
+    const restartBtn = document.getElementById('restart-btn');
+
+    ipcRenderer.on('update-status', (event, data) => {
+      switch (data.status) {
+        case 'checking':
+          console.log('Checking for updates...');
+          break;
+
+        case 'available':
+          overlay.style.display = 'flex';
+          message.textContent = `New version ${data.info.version} is available!`;
+          break;
+
+        case 'downloading':
+          updateBtn.style.display = 'none';
+          progressContainer.style.display = 'block';
+          progressPercent.textContent = `${data.info.percent}%`;
+          progressBar.style.width = `${data.info.percent}%`;
+          break;
+
+        case 'downloaded':
+          progressPercent.textContent = '100%';
+          progressBar.style.width = '100%';
+          restartBtn.style.display = 'inline-block';
+          restartBtn.textContent = 'Restart to Update';
+          break;
+
+        case 'up-to-date':
+          console.log('App is up to date');
+          break;
+
+        case 'error':
+          overlay.style.display = 'flex';
+          message.textContent = 'Update error: ' + data.info;
+          updateBtn.textContent = 'Retry';
+          break;
+      }
+    });
+
+    updateBtn.onclick = () => {
+      ipcRenderer.send('start-update');
+    };
+
+    restartBtn.onclick = () => {
+      ipcRenderer.send('restart-app');
     };
   </script>
 </body>

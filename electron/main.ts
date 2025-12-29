@@ -1,48 +1,16 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { autoUpdater } from 'electron-updater';
 
-// Optional: Completely remove the menu bar (File, Edit, View, etc.)
-app.whenReady().then(() => {
-  const { Menu } = require('electron');
-  Menu.setApplicationMenu(null);
-});
-
-// Auto-updater configuration
-autoUpdater.autoDownload = true;
-autoUpdater.autoInstallOnAppQuit = true;
-
-// Logging for debugging updates
-autoUpdater.on('checking-for-update', () => {
-  console.log('Checking for update...');
-});
-
-autoUpdater.on('update-available', (info: any) => {
-  console.log(`Update available: v${info.version}`);
-});
-
-autoUpdater.on('update-not-available', () => {
-  console.log('No update available — you are up to date!');
-});
-
-autoUpdater.on('download-progress', (progress: any) => {
-  console.log(`Download progress: ${Math.round(progress.percent)}%`);
-});
-
-autoUpdater.on('update-downloaded', () => {
-  console.log('Update downloaded — will install when app quits');
-});
-
-autoUpdater.on('error', (error: Error) => {
-  console.error('Auto-update error:', error.message || error);
-});
+// Declare mainWindow at the module level so it's accessible everywhere
+let mainWindow: BrowserWindow | null = null;
 
 function createWindow() {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1280,
     height: 720,
-    icon: path.join(__dirname, '../icon.png'), // Your moon icon
-    autoHideMenuBar: true, // Hides menu bar on Windows/Linux
+    icon: path.join(__dirname, '../icon.png'),
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -51,15 +19,47 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, '../client/index.html'));
+}
 
-  // Check for updates 5 seconds after launch
+// Send update status to renderer
+function sendUpdateStatus(status: string, info?: any) {
+  mainWindow?.webContents.send('update-status', { status, info });
+}
+
+// Auto-updater configuration
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = false;
+
+autoUpdater.on('checking-for-update', () => sendUpdateStatus('checking'));
+autoUpdater.on('update-available', (info) => sendUpdateStatus('available', info));
+autoUpdater.on('update-not-available', () => sendUpdateStatus('up-to-date'));
+autoUpdater.on('download-progress', (progress) => {
+  sendUpdateStatus('downloading', {
+    percent: Math.round(progress.percent),
+    speed: progress.bytesPerSecond,
+    transferred: progress.transferred,
+    total: progress.total,
+  });
+});
+autoUpdater.on('update-downloaded', () => sendUpdateStatus('downloaded'));
+autoUpdater.on('error', (err) => sendUpdateStatus('error', err.message));
+
+// IPC handlers
+ipcMain.on('start-update', () => autoUpdater.downloadUpdate());
+ipcMain.on('restart-app', () => autoUpdater.quitAndInstall());
+
+// App lifecycle
+app.whenReady().then(() => {
+  // Remove menu bar globally
+  const { Menu } = require('electron');
+  Menu.setApplicationMenu(null);
+
+  createWindow();
+
+  // Small delay to ensure window is ready before checking updates
   setTimeout(() => {
     autoUpdater.checkForUpdates();
   }, 5000);
-}
-
-app.whenReady().then(() => {
-  createWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -72,4 +72,9 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+// Optional: clean up reference when window closes (prevents memory leaks)
+app.on('before-quit', () => {
+  mainWindow = null;
 });

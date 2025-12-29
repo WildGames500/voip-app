@@ -1,15 +1,10 @@
 {
   "name": "moonbeam",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "MoonBeam - Discord-like Voice Chat",
   "productName": "MoonBeam",
   "main": "dist/electron/main.js",
   "repository": "https://github.com/WildGames500/voip-app",
-  "publish": {
-    "provider": "github",
-    "repo": "voip-app",
-    "owner": "WildGames500"
-  },
   "scripts": {
     "clean": "rimraf dist release",
     "build": "npm run clean && tsc && node copy-html.js",
@@ -48,7 +43,7 @@
     },
     "files": [
       "dist/**/*",
-      "client/index.html",
+      "client/**/*",
       "icon.png",
       "package.json"
     ],
@@ -61,6 +56,14 @@
     },
     "linux": {
       "icon": "icon.png"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "WildGames500",
+        "repo": "voip-app",
+        "releaseType": "release"
+      }
+    ]
   }
 }
